@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experimento de la Doble Rendija - Simulación</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid black;
+            margin-top: 50px;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #btnObserve {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <button id="btnObserve">Observar Rendijas</button>
+        <canvas id="experimentCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("experimentCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const rendijas = [
+            {x: 250, y: 100, width: 10, height: 200}, // Rendija 1
+            {x: 350, y: 100, width: 10, height: 200}, // Rendija 2
+        ];
+        const screen = {x: 500, y: 50, width: 300, height: 300}; // Pantalla de detección
+        let observing = false;
+        const particles = []; // Array de partículas
+
+        // Crear partículas
+        function Particle() {
+            this.x = Math.random() * 50 + 50; // Inicialmente a la izquierda
+            this.y = Math.random() * 20 + 180; // Posición aleatoria vertical
+            this.size = 5;
+            this.speed = 1 + Math.random() * 2;
+            this.passedRendijas = []; // Almacena las rendijas por las que pasó
+            this.color = "gray"; // Color inicial de la partícula (gris)
+        }
+
+        // Dibuja las partículas
+        Particle.prototype.update = function() {
+            // Si no estamos observando, las partículas pueden pasar por ambas rendijas
+            if (!observing) {
+                // Si pasa por la primera rendija, se vuelve roja
+                if (this.x > rendijas[0].x + rendijas[0].width && this.x < rendijas[0].x + rendijas[0].width + 1 && !this.passedRendijas.includes(1)) {
+                    this.passedRendijas.push(1); // Pasó por la primera rendija
+                    this.color = "red"; // Color rojo si pasa por la primera rendija
+                }
+                // Si pasa por la segunda rendija, se vuelve azul
+                if (this.x > rendijas[1].x + rendijas[1].width && this.x < rendijas[1].x + rendijas[1].width + 1 && !this.passedRendijas.includes(2)) {
+                    this.passedRendijas.push(2); // Pasó por la segunda rendija
+                    this.color = "blue"; // Color azul si pasa por la segunda rendija
+                }
+            } else {
+                // Si estamos observando, la partícula solo pasa por una rendija
+                if (this.x > rendijas[0].x + rendijas[0].width && !this.passedRendijas.includes(1)) {
+                    this.passedRendijas.push(1); // Pasó por la primera rendija
+                    this.color = "red"; // Color rojo si pasa por la primera rendija
+                } else if (this.x > rendijas[1].x + rendijas[1].width && !this.passedRendijas.includes(2)) {
+                    this.passedRendijas.push(2); // Pasó por la segunda rendija
+                    this.color = "blue"; // Color azul si pasa por la segunda rendija
+                }
+            }
+
+            // Movimiento de la partícula hacia la pantalla de detección
+            if (this.x < screen.x) {
+                this.x += this.speed; // Sigue moviéndose hacia la pantalla
+            }
+
+            // Mantener la partícula en su color y posición tras pasar por las rendijas
+            if (this.x >= screen.x && this.x <= screen.x + screen.width) {
+                if (this.color === "red") {
+                    this.x = screen.x; // Alinea la partícula roja a la izquierda
+                } else if (this.color === "blue") {
+                    this.x = screen.x + screen.width / 2; // Alinea la partícula azul al centro
+                }
+            }
+        };
+
+        // Dibuja las partículas
+        Particle.prototype.draw = function() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+
+            // Usamos el color actualizado de la partícula
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+        };
+
+        // Dibuja las rendijas
+        function drawRendijas() {
+            ctx.fillStyle = "black";
+            for (const rendija of rendijas) {
+                ctx.fillRect(rendija.x, rendija.y, rendija.width, rendija.height);
+            }
+        }
+
+        // Dibuja la pantalla de detección
+        function drawScreen() {
+            ctx.fillStyle = "lightgrey";
+            ctx.fillRect(screen.x, screen.y, screen.width, screen.height);
+        }
+
+        // Dibuja el patrón de interferencia
+        function drawPattern() {
+            if (!observing) {
+                ctx.strokeStyle = "green";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let i = 0; i < particles.length; i++) {
+                    let p = particles[i];
+                    if (p.passedRendijas.length > 0) {
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x + 2, p.y); // Dibuja la trayectoria en la pantalla
+                    }
+                }
+                ctx.stroke();
+            }
+        }
+
+        // Manejo de botón "Observar"
+        document.getElementById("btnObserve").addEventListener("click", function() {
+            observing = !observing; // Cambiar estado de observación
+            if (observing) {
+                this.textContent = "Dejar de Observar";
+            } else {
+                this.textContent = "Observar Rendijas";
+            }
+        });
+
+        // Actualiza la simulación
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawRendijas();
+            drawScreen();
+            drawPattern();
+
+            // Crear nuevas partículas de manera continua
+            if (Math.random() < 0.1) { // Probabilidad de crear nuevas partículas
+                particles.push(new Particle());
+            }
+
+            // Actualiza y dibuja las partículas
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+            }
+
+            requestAnimationFrame(update); // Llama a la función continuamente
+        }
+
+        // Iniciar la simulación
+        update();
+    </script>
+</body>
+</html>
+
